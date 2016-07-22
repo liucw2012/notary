@@ -9,9 +9,11 @@ It is generated from these files:
 	proto/signer.proto
 
 It has these top-level messages:
+	CreateKeyRequest
 	KeyInfo
 	KeyID
 	Algorithm
+	GetKeyInfoResponse
 	PublicKey
 	Signature
 	SignatureRequest
@@ -33,6 +35,16 @@ import (
 var _ = proto1.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
+
+type CreateKeyRequest struct {
+	Algorithm string `protobuf:"bytes,1,opt,name=algorithm" json:"algorithm,omitempty"`
+	Gun       string `protobuf:"bytes,2,opt,name=gun" json:"gun,omitempty"`
+	Role      string `protobuf:"bytes,3,opt,name=role" json:"role,omitempty"`
+}
+
+func (m *CreateKeyRequest) Reset()         { *m = CreateKeyRequest{} }
+func (m *CreateKeyRequest) String() string { return proto1.CompactTextString(m) }
+func (*CreateKeyRequest) ProtoMessage()    {}
 
 // KeyInfo holds a KeyID that is used to reference the key and it's algorithm
 type KeyInfo struct {
@@ -75,6 +87,25 @@ type Algorithm struct {
 func (m *Algorithm) Reset()         { *m = Algorithm{} }
 func (m *Algorithm) String() string { return proto1.CompactTextString(m) }
 func (*Algorithm) ProtoMessage()    {}
+
+// GetKeyInfoResponse returns the public key, the role, and the algorithm and key ID.
+// For backwards compatibility, it doesn't embed a PublicKey object
+type GetKeyInfoResponse struct {
+	KeyInfo   *KeyInfo `protobuf:"bytes,1,opt,name=keyInfo" json:"keyInfo,omitempty"`
+	PublicKey []byte   `protobuf:"bytes,2,opt,name=publicKey,proto3" json:"publicKey,omitempty"`
+	Role      string   `protobuf:"bytes,3,opt,name=role" json:"role,omitempty"`
+}
+
+func (m *GetKeyInfoResponse) Reset()         { *m = GetKeyInfoResponse{} }
+func (m *GetKeyInfoResponse) String() string { return proto1.CompactTextString(m) }
+func (*GetKeyInfoResponse) ProtoMessage()    {}
+
+func (m *GetKeyInfoResponse) GetKeyInfo() *KeyInfo {
+	if m != nil {
+		return m.KeyInfo
+	}
+	return nil
+}
 
 // PublicKey has a KeyInfo that is used to reference the key, and opaque bytes of a publicKey
 type PublicKey struct {
@@ -167,11 +198,11 @@ var _ grpc.ClientConn
 
 type KeyManagementClient interface {
 	// CreateKey creates as asymmetric key pair and returns the PublicKey
-	CreateKey(ctx context.Context, in *Algorithm, opts ...grpc.CallOption) (*PublicKey, error)
+	CreateKey(ctx context.Context, in *CreateKeyRequest, opts ...grpc.CallOption) (*PublicKey, error)
 	// DeleteKey deletes the key associated with a KeyID
 	DeleteKey(ctx context.Context, in *KeyID, opts ...grpc.CallOption) (*Void, error)
 	// GetKeyInfo returns the PublicKey associated with a KeyID
-	GetKeyInfo(ctx context.Context, in *KeyID, opts ...grpc.CallOption) (*PublicKey, error)
+	GetKeyInfo(ctx context.Context, in *KeyID, opts ...grpc.CallOption) (*GetKeyInfoResponse, error)
 	// CheckHealth returns the HealthStatus with the service
 	CheckHealth(ctx context.Context, in *Void, opts ...grpc.CallOption) (*HealthStatus, error)
 }
@@ -184,7 +215,7 @@ func NewKeyManagementClient(cc *grpc.ClientConn) KeyManagementClient {
 	return &keyManagementClient{cc}
 }
 
-func (c *keyManagementClient) CreateKey(ctx context.Context, in *Algorithm, opts ...grpc.CallOption) (*PublicKey, error) {
+func (c *keyManagementClient) CreateKey(ctx context.Context, in *CreateKeyRequest, opts ...grpc.CallOption) (*PublicKey, error) {
 	out := new(PublicKey)
 	err := grpc.Invoke(ctx, "/proto.KeyManagement/CreateKey", in, out, c.cc, opts...)
 	if err != nil {
@@ -202,8 +233,8 @@ func (c *keyManagementClient) DeleteKey(ctx context.Context, in *KeyID, opts ...
 	return out, nil
 }
 
-func (c *keyManagementClient) GetKeyInfo(ctx context.Context, in *KeyID, opts ...grpc.CallOption) (*PublicKey, error) {
-	out := new(PublicKey)
+func (c *keyManagementClient) GetKeyInfo(ctx context.Context, in *KeyID, opts ...grpc.CallOption) (*GetKeyInfoResponse, error) {
+	out := new(GetKeyInfoResponse)
 	err := grpc.Invoke(ctx, "/proto.KeyManagement/GetKeyInfo", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -224,11 +255,11 @@ func (c *keyManagementClient) CheckHealth(ctx context.Context, in *Void, opts ..
 
 type KeyManagementServer interface {
 	// CreateKey creates as asymmetric key pair and returns the PublicKey
-	CreateKey(context.Context, *Algorithm) (*PublicKey, error)
+	CreateKey(context.Context, *CreateKeyRequest) (*PublicKey, error)
 	// DeleteKey deletes the key associated with a KeyID
 	DeleteKey(context.Context, *KeyID) (*Void, error)
 	// GetKeyInfo returns the PublicKey associated with a KeyID
-	GetKeyInfo(context.Context, *KeyID) (*PublicKey, error)
+	GetKeyInfo(context.Context, *KeyID) (*GetKeyInfoResponse, error)
 	// CheckHealth returns the HealthStatus with the service
 	CheckHealth(context.Context, *Void) (*HealthStatus, error)
 }
@@ -238,7 +269,7 @@ func RegisterKeyManagementServer(s *grpc.Server, srv KeyManagementServer) {
 }
 
 func _KeyManagement_CreateKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
-	in := new(Algorithm)
+	in := new(CreateKeyRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
