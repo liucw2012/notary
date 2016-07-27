@@ -134,7 +134,7 @@ func testMarkKeyActive(t *testing.T, dbStore keyActivator) (data.PrivateKey, dat
 		requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole, testKey)
 	}
 
-	// MarkActive shoudlshould succeed on a key that exists
+	// MarkActive should succeed on a key that exists
 	require.NoError(t, dbStore.MarkActive(testKeys[0].ID()))
 
 	return testKeys[0], testKeys[1]
