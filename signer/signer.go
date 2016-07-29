@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 
 	pb "github.com/docker/notary/proto"
+	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 )
 
@@ -42,4 +43,5 @@ type Config struct {
 	TLSConfig      *tls.Config
 	CryptoServices CryptoServiceIndex
 	MarkKeyActive  func(string) error
+	PendingKeyFunc func(string, string) (data.PublicKey, error)
 }

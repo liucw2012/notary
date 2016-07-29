@@ -162,6 +162,7 @@ func setUpSignerServer(t *testing.T, store trustmanager.KeyStore, markActive fun
 	}
 
 	fakeHealth := func() map[string]string { return nil }
+	fakePendingCheck := func(string, string) (data.PublicKey, error) { return nil, fmt.Errorf("none pending") }
 	if markActive == nil {
 		markActive = func(string) error { return nil }
 	}
@@ -171,6 +172,7 @@ func setUpSignerServer(t *testing.T, store trustmanager.KeyStore, markActive fun
 	pb.RegisterKeyManagementServer(grpcServer, &api.KeyManagementServer{
 		CryptoServices: cryptoServices,
 		HealthChecker:  fakeHealth,
+		PendingKeyFunc: fakePendingCheck,
 	})
 	pb.RegisterSignerServer(grpcServer, &api.SignerServer{
 		CryptoServices: cryptoServices,
