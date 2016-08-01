@@ -162,7 +162,7 @@ func setUpSignerServer(t *testing.T, store trustmanager.KeyStore, markActive fun
 	}
 
 	fakeHealth := func() map[string]string { return nil }
-	fakePendingCheck := func(string, string) (data.PublicKey, error) { return nil, fmt.Errorf("none pending") }
+	fakePendingCheck := func(trustmanager.KeyInfo) (data.PublicKey, error) { return nil, fmt.Errorf("none pending") }
 	if markActive == nil {
 		markActive = func(string) error { return nil }
 	}
