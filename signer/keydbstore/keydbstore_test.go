@@ -36,6 +36,7 @@ type keyRotator interface {
 type keyActivator interface {
 	trustmanager.KeyStore
 	MarkActive(keyID string) error
+	GetPendingKey(trustmanager.KeyInfo) (data.PublicKey, error)
 }
 
 // A key can only be added to the DB once.  Returns a list of expected keys, and which keys are expected to exist.
@@ -138,4 +139,38 @@ func testMarkKeyActive(t *testing.T, dbStore keyActivator) (data.PrivateKey, dat
 	require.NoError(t, dbStore.MarkActive(testKeys[0].ID()))
 
 	return testKeys[0], testKeys[1]
+}
+
+func testGetPendingKey(t *testing.T, dbStore keyActivator) (data.PrivateKey, data.PrivateKey) {
+	// Create a test key and add it to the db such that it will be pending (never marked active)
+	keyInfo := trustmanager.KeyInfo{Role: data.CanonicalSnapshotRole, Gun: "gun"}
+	pendingTestKey, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+	requireGetKeyFailure(t, dbStore, pendingTestKey.ID())
+	err = dbStore.AddKey(keyInfo, pendingTestKey)
+	require.NoError(t, err)
+	requireGetKeySuccess(t, dbStore, data.CanonicalSnapshotRole, pendingTestKey)
+
+	retrievedKey, err := dbStore.GetPendingKey(keyInfo)
+	require.NoError(t, err)
+	require.Equal(t, pendingTestKey.Public(), retrievedKey.Public())
+
+	// Now create an active key with the same keyInfo
+	activeTestKey, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+	requireGetKeyFailure(t, dbStore, activeTestKey.ID())
+	err = dbStore.AddKey(keyInfo, activeTestKey)
+	require.NoError(t, err)
+	requireGetKeySuccess(t, dbStore, data.CanonicalSnapshotRole, activeTestKey)
+
+	// Mark as active
+	require.NoError(t, dbStore.MarkActive(activeTestKey.ID()))
+
+	// We should still get back the original pending key on GetPendingKey
+	retrievedKey, err = dbStore.GetPendingKey(keyInfo)
+	require.NoError(t, err)
+	require.NotEqual(t, activeTestKey.Public(), retrievedKey.Public())
+	require.Equal(t, pendingTestKey.Public(), retrievedKey.Public())
+
+	return pendingTestKey, activeTestKey
 }

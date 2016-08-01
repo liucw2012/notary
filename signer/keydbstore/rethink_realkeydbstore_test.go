@@ -209,3 +209,16 @@ func TestRethinkMarkKeyActive(t *testing.T) {
 	require.True(t, rdbKeys[activeKey.ID()].LastUsed.Equal(rdbNow))
 	require.True(t, rdbKeys[nonActiveKey.ID()].LastUsed.Equal(time.Time{}))
 }
+
+func TestRethinkGetPendingKey(t *testing.T) {
+	dbStore, cleanup := rethinkDBSetup(t, "signerActivationTests")
+	defer cleanup()
+
+	pendingKey, activeKey := testGetPendingKey(t, dbStore)
+
+	rdbKeys := requireExpectedRDBKeys(t, dbStore, []data.PrivateKey{pendingKey, activeKey})
+
+	// check that activation updates the activated key but not the unactivated key
+	require.True(t, rdbKeys[activeKey.ID()].LastUsed.Equal(rdbNow))
+	require.True(t, rdbKeys[pendingKey.ID()].LastUsed.Equal(time.Time{}))
+}
